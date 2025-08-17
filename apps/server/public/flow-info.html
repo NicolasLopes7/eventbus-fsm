@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Flow Visualization - EventBus FSM</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8f9fa;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .layout {
+      display: flex;
+      height: 100vh;
+    }
+
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .debug-panel {
+      width: 400px;
+      background: white;
+      border-left: 1px solid #e9ecef;
+      display: flex;
+      flex-direction: column;
+      max-height: 100vh;
+    }
+
+    .debug-header {
+      background: #343a40;
+      color: white;
+      padding: 16px;
+      font-size: 16px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .debug-content {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      font-size: 13px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      background: #f8f9fa;
+    }
+
+    .debug-event {
+      background: white;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+
+    .debug-event-header {
+      font-weight: 600;
+      color: #007bff;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .debug-event-time {
+      font-size: 11px;
+      color: #6c757d;
+    }
+
+    .debug-event-data {
+      background: #f8f9fa;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #495057;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .container {
+      max-width: none;
+      margin: 0;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      height: calc(100vh - 40px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px 30px;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .header h1 {
+      font-size: 1.8rem;
+      margin-bottom: 4px;
+    }
+
+    .session-controls {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .session-input {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 4px;
+      width: 180px;
+      font-size: 12px;
+    }
+
+    .control-btn {
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background 0.2s;
+    }
+
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .content {
+      flex: 1;
+      padding: 20px 30px;
+      overflow-y: auto;
+    }
+
+    .live-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      padding: 10px 14px;
+      background: #e8f5e8;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: #28a745;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .session-info {
+      background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .session-info h3 {
+      color: #1976d2;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .context-display {
+      background: white;
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid #e9ecef;
+      margin-top: 10px;
+    }
+
+    .flow-diagram {
+      background: white;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      padding: 24px;
+      margin: 16px 0;
+      overflow-x: auto;
+    }
+
+    .state-details-panel {
+      background: white;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      margin: 16px 0;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      display: none;
+    }
+
+    .state-details-panel.show {
+      display: block;
+    }
+
+    .state-details-header {
+      background: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: between;
+      align-items: center;
+    }
+
+    .state-details-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #2c3e50;
+      margin: 0;
+    }
+
+    .close-details {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: #6c757d;
+      padding: 4px;
+      margin-left: auto;
+    }
+
+    .close-details:hover {
+      color: #343a40;
+    }
+
+    .state-details-content {
+      padding: 20px;
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .details-section {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 16px;
+      border-left: 4px solid #007bff;
+    }
+
+    .details-section h4 {
+      color: #007bff;
+      margin-bottom: 12px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .detail-item {
+      background: white;
+      padding: 10px 12px;
+      border-radius: 6px;
+      margin: 6px 0;
+      border: 1px solid #e9ecef;
+      font-size: 13px;
+    }
+
+    .detail-item strong {
+      color: #495057;
+    }
+
+    .current-context {
+      background: #fff3cd;
+      border-left-color: #ffc107;
+    }
+
+    .current-context h4 {
+      color: #856404;
+    }
+
+    .state-flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      min-height: 180px;
+      justify-content: center;
+    }
+
+    .state-node {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .state-circle {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 11px;
+      text-align: center;
+      padding: 6px;
+      border: 3px solid #e9ecef;
+      background: #f8f9fa;
+      color: #495057;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      position: relative;
+    }
+
+    .state-node:hover .state-circle {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .state-tooltip {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #2c3e50;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 11px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      max-width: 300px;
+      white-space: normal;
+      width: max-content;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+    }
+
+    .state-node:hover .state-tooltip {
+      opacity: 1;
+      visibility: visible;
+      top: -20px;
+    }
+
+    .state-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #2c3e50;
+    }
+
+    .tooltip-quick {
+      font-size: 10px;
+      line-height: 1.3;
+    }
+
+    .state-circle.start {
+      background: #d4edda;
+      border-color: #28a745;
+      color: #155724;
+    }
+
+    .state-circle.current {
+      background: #fff3cd;
+      border-color: #ffc107;
+      color: #856404;
+      animation: glow 2s infinite alternate;
+      box-shadow: 0 0 20px rgba(255, 193, 7, 0.5);
+    }
+
+    @keyframes glow {
+      from {
+        box-shadow: 0 0 20px rgba(255, 193, 7, 0.5);
+      }
+
+      to {
+        box-shadow: 0 0 30px rgba(255, 193, 7, 0.8);
+      }
+    }
+
+    .state-circle.completed {
+      background: #d1ecf1;
+      border-color: #17a2b8;
+      color: #0c5460;
+    }
+
+    .state-label {
+      margin-top: 6px;
+      font-size: 10px;
+      color: #6c757d;
+      max-width: 100px;
+      text-align: center;
+    }
+
+    .arrow {
+      color: #6c757d;
+      font-size: 20px;
+      margin: 0 8px;
+      display: flex;
+      align-items: center;
+    }
+
+    .legend {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      margin: 16px 0;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 6px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    .legend-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid;
+    }
+
+    .legend-start {
+      background: #d4edda;
+      border-color: #28a745;
+    }
+
+    .legend-current {
+      background: #fff3cd;
+      border-color: #ffc107;
+    }
+
+    .legend-completed {
+      background: #d1ecf1;
+      border-color: #17a2b8;
+    }
+
+    .legend-default {
+      background: #f8f9fa;
+      border-color: #e9ecef;
+    }
+
+    .error {
+      background: #ffebee;
+      color: #c62828;
+      padding: 16px;
+      border-radius: 8px;
+      margin: 16px 0;
+      text-align: center;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 30px;
+      color: #6c757d;
+    }
+
+    .auto-refresh {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    .auto-refresh input {
+      margin-right: 3px;
+    }
+
+    .back-link {
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      background: #007bff;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 12px;
+      transition: background 0.2s;
+      z-index: 1000;
+    }
+
+    .back-link:hover {
+      background: #0056b3;
+    }
+
+    .tooltip-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tooltip-modal {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+
+    .tooltip-close {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #6c757d;
+    }
+
+    .tooltip-close:hover {
+      color: #343a40;
+    }
+
+    .tooltip-section {
+      margin-bottom: 16px;
+    }
+
+    .tooltip-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .tooltip-title {
+      font-weight: 600;
+      color: #007bff;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+
+    .tooltip-content {
+      color: #495057;
+      line-height: 1.5;
+    }
+
+    .action-item,
+    .transition-item {
+      background: #f8f9fa;
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin: 4px 0;
+      border-left: 3px solid #007bff;
+    }
+
+    .context-item {
+      background: #fff3cd;
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin: 4px 0;
+      border-left: 3px solid #ffc107;
+    }
+
+    .hide-debug {
+      display: none !important;
+    }
+
+    @media (max-width: 1200px) {
+      .debug-panel {
+        width: 300px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .layout {
+        flex-direction: column;
+      }
+
+      .debug-panel {
+        width: 100%;
+        height: 40vh;
+        border-left: none;
+        border-top: 1px solid #e9ecef;
+      }
+
+      .main-content {
+        height: 60vh;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <a href="/" class="back-link">← Back to Chat</a>
+
+  <div class="layout">
+    <div class="main-content">
+      <div class="container">
+        <div class="header">
+          <h1>🔄 Live Flow Visualization</h1>
+          <p>Real-time state machine monitoring</p>
+
+          <div class="session-controls">
+            <input type="text" id="sessionInput" class="session-input" placeholder="Enter session ID">
+            <button class="control-btn" onclick="loadSession()">Load</button>
+            <button class="control-btn" onclick="refreshData()">🔄</button>
+            <button class="control-btn" onclick="toggleDebugPanel()">Debug</button>
+            <div class="auto-refresh">
+              <input type="checkbox" id="autoRefresh" checked>
+              <label for="autoRefresh">Auto</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="content">
+          <div id="liveStatus" class="live-status" style="display: none;">
+            <div class="live-dot"></div>
+            <span>Live session monitoring</span>
+          </div>
+
+          <div class="loading" id="loading">
+            Loading flow visualization...
+          </div>
+
+          <div id="flowContent" style="display: none;">
+            <!-- Content will be populated by JavaScript -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="debug-panel" id="debugPanel">
+      <div class="debug-header">
+        <span>Live Debug Events</span>
+        <button class="control-btn" onclick="clearDebugEvents()">Clear</button>
+      </div>
+      <div class="debug-content" id="debugContent">
+        <div style="text-align: center; color: #6c757d; padding: 20px;">
+          Connect to a session to see live events
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tooltip Modal -->
+  <div class="tooltip-overlay" id="tooltipOverlay" onclick="closeTooltip()">
+    <div class="tooltip-modal" onclick="event.stopPropagation()">
+      <button class="tooltip-close" onclick="closeTooltip()">&times;</button>
+      <div id="tooltipContent"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentSessionId = null;
+    let refreshInterval = null;
+    let ws = null;
+
+    // Get session ID from URL or localStorage
+    function getSessionId() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionFromUrl = urlParams.get('session');
+      if (sessionFromUrl) return sessionFromUrl;
+
+      return localStorage.getItem('fsm_session_id');
+    }
+
+    async function loadFlowInfo(sessionId = null) {
+      try {
+        let url = '/api/flow-info';
+        if (sessionId) {
+          url += `?session=${encodeURIComponent(sessionId)}`;
+          currentSessionId = sessionId;
+          connectWebSocket(sessionId);
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const flowInfo = await response.json();
+        displayFlowInfo(flowInfo);
+
+      } catch (error) {
+        document.getElementById('loading').innerHTML = `
+                    <div class="error">
+                        <strong>Error loading flow information:</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+      }
+    }
+
+    function connectWebSocket(sessionId) {
+      if (ws) {
+        ws.close();
+      }
+
+      const wsUrl = `ws://localhost:3001?id=${sessionId}`;
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        addDebugEvent('WebSocket connected', null);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          addDebugEvent(`Received: ${message.type}`, message);
+
+          // Refresh flow info on state changes
+          if (message.type === 'fsm.transition' || message.type === 'state.updated') {
+            setTimeout(() => loadFlowInfo(currentSessionId), 100);
+          }
+        } catch (error) {
+          addDebugEvent(`Parse error: ${error.message}`, null);
+        }
+      };
+
+      ws.onclose = () => {
+        addDebugEvent('WebSocket disconnected', null);
+      };
+
+      ws.onerror = (error) => {
+        addDebugEvent(`WebSocket error: ${error.message || 'Connection failed'}`, null);
+      };
+    }
+
+    function addDebugEvent(event, data = null) {
+      const debugContent = document.getElementById('debugContent');
+      const timestamp = new Date().toLocaleTimeString();
+
+      const entry = document.createElement('div');
+      entry.className = 'debug-event';
+
+      const header = document.createElement('div');
+      header.className = 'debug-event-header';
+      header.innerHTML = `
+                <span>${event}</span>
+                <span class="debug-event-time">${timestamp}</span>
+            `;
+
+      entry.appendChild(header);
+
+      if (data) {
+        const details = document.createElement('div');
+        details.className = 'debug-event-data';
+        details.textContent = JSON.stringify(data, null, 2);
+        entry.appendChild(details);
+      }
+
+      // Keep only last 30 events
+      if (debugContent.children.length > 30) {
+        debugContent.removeChild(debugContent.firstChild);
+      }
+
+      debugContent.appendChild(entry);
+      debugContent.scrollTop = debugContent.scrollHeight;
+    }
+
+    function clearDebugEvents() {
+      document.getElementById('debugContent').innerHTML = `
+                <div style="text-align: center; color: #6c757d; padding: 20px;">
+                    Debug events cleared
+                </div>
+            `;
+    }
+
+    function displayFlowInfo(flow) {
+      document.getElementById('loading').style.display = 'none';
+      const content = document.getElementById('flowContent');
+      const liveStatus = document.getElementById('liveStatus');
+
+      content.style.display = 'block';
+
+      if (flow.session) {
+        liveStatus.style.display = 'flex';
+      }
+
+      content.innerHTML = `
+                ${flow.session ? generateSessionInfo(flow.session) : ''}
+                
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-dot legend-start"></div>
+                        <span>Start State</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot legend-current"></div>
+                        <span>Current State</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot legend-completed"></div>
+                        <span>Tool States</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot legend-default"></div>
+                        <span>Available States</span>
+                    </div>
+                </div>
+
+                <div class="flow-diagram">
+                    <h3 style="text-align: center; margin-bottom: 20px;">🗺️ State Flow - Hover for preview, click for details</h3>
+                    ${generateLiveFlowDiagram(flow.states, flow.start, flow.session)}
+                </div>
+
+                <div class="state-details-panel" id="stateDetailsPanel">
+                    <div class="state-details-header">
+                        <h3 class="state-details-title" id="stateDetailsTitle">State Details</h3>
+                        <button class="close-details" onclick="closeStateDetails()">&times;</button>
+                    </div>
+                    <div class="state-details-content" id="stateDetailsContent">
+                        <!-- Details will be populated by JavaScript -->
+                    </div>
+                </div>
+            `;
+    }
+
+    function generateSessionInfo(session) {
+      return `
+                <div class="session-info">
+                    <h3>📊 Live Session Data</h3>
+                    <div class="info-grid">
+                        <div>
+                            <strong>Session ID:</strong> ${session.sessionId.substring(0, 8)}...<br>
+                            <strong>Current State:</strong> <span style="color: #856404; font-weight: 600;">${session.currentState}</span>
+                        </div>
+                        <div>
+                            ${session.lastIntent ? `<strong>Last Intent:</strong> ${session.lastIntent.name} (${Math.round(session.lastIntent.confidence * 100)}%)<br>` : ''}
+                            ${session.lastToolCall ? `<strong>Last Tool:</strong> ${session.lastToolCall.name}` : ''}
+                        </div>
+                    </div>
+                    
+                    ${Object.keys(session.context || {}).length > 0 ? `
+                        <div class="context-display">
+                            <strong>📝 Context:</strong>
+                            <pre style="margin-top: 6px; font-size: 11px;">${JSON.stringify(session.context, null, 2)}</pre>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+    }
+
+    function generateLiveFlowDiagram(states, startState, session) {
+      const stateElements = states.map((state, index) => {
+        const isStart = state.name === startState;
+        const isCurrent = session && state.name === session.currentState;
+        const hasToolAction = state.onEnter.some(action => action.tool);
+
+        let stateClass = '';
+        if (isStart) stateClass = 'start';
+        else if (isCurrent) stateClass = 'current';
+        else if (hasToolAction) stateClass = 'completed';
+
+        const quickTooltip = generateQuickTooltip(state, session, isStart, isCurrent);
+        const arrow = index < states.length - 1 ? '<div class="arrow">→</div>' : '';
+
+        return `
+                    <div class="state-node" onclick="showStateDetails('${state.name}', ${JSON.stringify(state).replace(/"/g, '&quot;')}, ${session ? JSON.stringify(session).replace(/"/g, '&quot;') : 'null'})">
+                        <div class="state-circle ${stateClass}">
+                            ${state.name.replace(/([A-Z])/g, ' $1').trim()}
+                            ${isCurrent ? '<br>📍' : ''}
+                            ${isStart ? '<br>🚀' : ''}
+                        </div>
+                        <div class="state-label">${state.name}</div>
+                        <div class="state-tooltip">
+                            <div class="tooltip-quick">${quickTooltip}</div>
+                        </div>
+                    </div>
+                    ${arrow}
+                `;
+      }).join('');
+
+      return `<div class="state-flow">${stateElements}</div>`;
+    }
+
+    function generateQuickTooltip(state, session, isStart, isCurrent) {
+      let tooltip = `<strong>${state.name}</strong><br>`;
+
+      if (isStart) tooltip += '🚀 Start state<br>';
+      if (isCurrent) tooltip += '📍 Current position<br>';
+
+      const actions = state.onEnter.filter(action => action.say || action.ask || action.tool);
+      if (actions.length > 0) {
+        const firstAction = actions[0];
+        const actionType = Object.keys(firstAction).find(key => ['say', 'ask', 'tool'].includes(key));
+        tooltip += `▶️ ${actionType}: ${typeof firstAction[actionType] === 'string' ? firstAction[actionType].substring(0, 30) + '...' : firstAction[actionType]}<br>`;
+      }
+
+      const transitions = state.transitions.length;
+      if (transitions > 0) {
+        tooltip += `🔄 ${transitions} transition${transitions > 1 ? 's' : ''}`;
+      }
+
+      return tooltip;
+    }
+
+    function showStateDetails(stateName, stateData, sessionData) {
+      const state = JSON.parse(stateData.replace(/&quot;/g, '"'));
+      const session = sessionData !== 'null' ? JSON.parse(sessionData.replace(/&quot;/g, '"')) : null;
+      const isCurrent = session && state.name === session.currentState;
+
+      // Update title
+      document.getElementById('stateDetailsTitle').textContent = state.name;
+
+      // Generate content
+      let content = `<div class="details-grid">`;
+
+      // State info section
+      content += `
+                <div class="details-section">
+                    <h4>📋 State Information</h4>
+                    ${isCurrent ? '<div class="detail-item" style="background: #fff3cd;"><strong>Status:</strong> 📍 Currently active</div>' : ''}
+                    ${state.name === 'InitialGreeting' ? '<div class="detail-item" style="background: #d4edda;"><strong>Type:</strong> 🚀 Start state</div>' : ''}
+                    <div class="detail-item"><strong>Actions:</strong> ${state.onEnter.length} action${state.onEnter.length !== 1 ? 's' : ''}</div>
+                    <div class="detail-item"><strong>Transitions:</strong> ${state.transitions.length} transition${state.transitions.length !== 1 ? 's' : ''}</div>
+                </div>
+            `;
+
+      // Actions section
+      if (state.onEnter && state.onEnter.length > 0) {
+        content += `
+                    <div class="details-section">
+                        <h4>🎬 Actions on Enter</h4>
+                        ${state.onEnter.map(action => {
+          const actionType = Object.keys(action).find(key =>
+            ['say', 'ask', 'tool', 'transfer', 'hangup'].includes(key)
+          );
+          const actionValue = action[actionType];
+          return `<div class="detail-item"><strong>${actionType}:</strong> ${typeof actionValue === 'string' ? actionValue : JSON.stringify(actionValue)}</div>`;
+        }).join('')}
+                    </div>
+                `;
+      }
+
+      // Transitions section
+      if (state.transitions && state.transitions.length > 0) {
+        content += `
+                    <div class="details-section">
+                        <h4>🔄 Transitions</h4>
+                        ${state.transitions.map(transition => {
+          let desc = '';
+          if (transition.onIntent) {
+            desc = `<strong>Intent:</strong> ${Array.isArray(transition.onIntent) ? transition.onIntent.join(', ') : transition.onIntent}`;
+          } else if (transition.onToolResult) {
+            desc = `<strong>Tool Result:</strong> ${transition.onToolResult}`;
+          }
+
+          if (transition.to) {
+            desc += ` → <strong>${transition.to}</strong>`;
+          } else if (transition.branch) {
+            desc += ` → <strong>Branching</strong>`;
+          }
+
+          return `<div class="detail-item">${desc}</div>`;
+        }).join('')}
+                    </div>
+                `;
+      }
+
+      // Current context section
+      if (session && isCurrent && Object.keys(session.context || {}).length > 0) {
+        content += `
+                    <div class="details-section current-context">
+                        <h4>📊 Current Context</h4>
+                        ${Object.entries(session.context).map(([key, value]) =>
+          `<div class="detail-item"><strong>${key}:</strong> ${JSON.stringify(value)}</div>`
+        ).join('')}
+                    </div>
+                `;
+      }
+
+      content += `</div>`;
+
+      document.getElementById('stateDetailsContent').innerHTML = content;
+      document.getElementById('stateDetailsPanel').classList.add('show');
+
+      // Scroll to the details panel
+      document.getElementById('stateDetailsPanel').scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest'
+      });
+    }
+
+    function closeStateDetails() {
+      document.getElementById('stateDetailsPanel').classList.remove('show');
+    }
+
+    function loadSession() {
+      const sessionId = document.getElementById('sessionInput').value.trim();
+      if (sessionId) {
+        localStorage.setItem('fsm_session_id', sessionId);
+        window.location.search = `?session=${sessionId}`;
+      }
+    }
+
+    function refreshData() {
+      if (currentSessionId) {
+        loadFlowInfo(currentSessionId);
+      } else {
+        loadFlowInfo();
+      }
+    }
+
+    function toggleDebugPanel() {
+      const panel = document.getElementById('debugPanel');
+      panel.classList.toggle('hide-debug');
+    }
+
+    function setupAutoRefresh() {
+      const checkbox = document.getElementById('autoRefresh');
+
+      if (checkbox.checked && currentSessionId) {
+        refreshInterval = setInterval(() => {
+          loadFlowInfo(currentSessionId);
+        }, 3000);
+      } else {
+        if (refreshInterval) {
+          clearInterval(refreshInterval);
+          refreshInterval = null;
+        }
+      }
+    }
+
+    // Event listeners
+    document.getElementById('sessionInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') loadSession();
+    });
+
+    document.getElementById('autoRefresh').addEventListener('change', setupAutoRefresh);
+
+    // Initialize
+    window.addEventListener('load', () => {
+      const sessionId = getSessionId();
+      if (sessionId) {
+        document.getElementById('sessionInput').value = sessionId;
+        loadFlowInfo(sessionId);
+        setupAutoRefresh();
+      } else {
+        loadFlowInfo();
+      }
+    });
+
+    // Cleanup
+    window.addEventListener('beforeunload', () => {
+      if (refreshInterval) clearInterval(refreshInterval);
+      if (ws) ws.close();
+    });
+
+    // ESC to close tooltip
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeTooltip();
+    });
+  </script>
+</body>
+
+</html>

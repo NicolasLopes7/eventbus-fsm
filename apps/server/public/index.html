@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EventBus FSM Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-container {
+            width: 800px;
+            height: 600px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .chat-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .connection-status {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #e74c3c;
+        }
+
+        .status-dot.connected {
+            background: #27ae60;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message.user {
+            align-items: flex-end;
+        }
+
+        .message.bot {
+            align-items: flex-start;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .message.user .message-bubble {
+            background: #007bff;
+            color: white;
+        }
+
+        .message.bot .message-bubble {
+            background: white;
+            color: #333;
+            border: 1px solid #e9ecef;
+        }
+
+        .message-time {
+            font-size: 10px;
+            color: #6c757d;
+            margin-top: 4px;
+        }
+
+        .event-message {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 8px 12px;
+            margin: 8px 0;
+            font-size: 12px;
+            font-family: monospace;
+            color: #495057;
+        }
+
+        .chat-input {
+            display: flex;
+            padding: 20px;
+            border-top: 1px solid #e9ecef;
+            background: white;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .input-field:focus {
+            border-color: #007bff;
+        }
+
+        .send-button {
+            margin-left: 12px;
+            padding: 12px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .send-button:hover {
+            background: #0056b3;
+        }
+
+        .send-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .debug-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 450px;
+            max-height: 80vh;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            display: none;
+            z-index: 1000;
+        }
+
+        .debug-panel.open {
+            display: block;
+        }
+
+        .debug-header {
+            background: #343a40;
+            color: white;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .debug-content {
+            padding: 16px;
+            max-height: calc(80vh - 60px);
+            overflow-y: auto;
+            font-size: 13px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #f8f9fa;
+        }
+
+        .debug-event {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            position: relative;
+        }
+
+        .debug-event-header {
+            font-weight: 600;
+            color: #007bff;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .debug-event-time {
+            font-size: 11px;
+            color: #6c757d;
+        }
+
+        .debug-event-data {
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #495057;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .flow-info-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .flow-info-btn:hover {
+            background: #5a6268;
+        }
+
+        .debug-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #343a40;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .context-display {
+            background: #e3f2fd;
+            padding: 8px 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .context-title {
+            font-weight: 600;
+            color: #1976d2;
+            margin-bottom: 4px;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 8px 0;
+            font-size: 14px;
+        }
+
+        .info-note {
+            background: #e8f5e8;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 12px;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="chat-title">🤖 EventBus FSM Chat</div>
+            <div class="connection-status">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Disconnected</span>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="messages">
+            <div class="info-note">
+                💡 <strong>Tips:</strong><br>
+                • Try: "I want to make a reservation"<br>
+                • Add "(HANG ON)" to any message to trigger misclassification<br>
+                • Watch the debug panel for real-time events
+            </div>
+        </div>
+
+        <div class="chat-input">
+            <input type="text" id="messageInput" class="input-field"
+                placeholder="Type your message... (try: 'I want to make a reservation')" disabled>
+            <button id="sendButton" class="send-button" disabled>Send</button>
+        </div>
+    </div>
+
+    <button class="debug-toggle" onclick="toggleDebug()">Debug</button>
+
+    <div class="debug-panel" id="debugPanel">
+        <div class="debug-header">
+            <span>Debug Events</span>
+            <a href="/flow-info" class="flow-info-btn" target="_blank">Flow Info</a>
+        </div>
+        <div class="debug-content" id="debugContent"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let sessionId = null;
+        let currentContext = {};
+
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const messages = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const debugContent = document.getElementById('debugContent');
+
+        // Initialize chat
+        async function initializeChat() {
+            try {
+                // Create demo session
+                const response = await fetch('/api/demo/reservation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                sessionId = data.session_id;
+
+                // Connect WebSocket
+                connectWebSocket();
+
+            } catch (error) {
+                addErrorMessage(`Failed to initialize chat: ${error.message}`);
+            }
+        }
+
+        function connectWebSocket() {
+            if (!sessionId) return;
+
+            const wsUrl = `ws://localhost:3001?id=${sessionId}`;
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                updateConnectionStatus(true);
+                addDebugEvent('WebSocket connected');
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    handleServerMessage(message);
+                } catch (error) {
+                    addDebugEvent(`Failed to parse message: ${error.message}`);
+                }
+            };
+
+            ws.onclose = () => {
+                updateConnectionStatus(false);
+                addDebugEvent('WebSocket disconnected');
+                setTimeout(() => {
+                    if (sessionId) connectWebSocket();
+                }, 2000);
+            };
+
+            ws.onerror = (error) => {
+                addDebugEvent(`WebSocket error: ${error.message || 'Connection failed'}`);
+            };
+        }
+
+        function handleServerMessage(message) {
+            addDebugEvent(`Received: ${message.type}`, message);
+
+            switch (message.type) {
+                case 'session.started':
+                    addBotMessage('👋 Welcome to Bella Vista! How can I help you today?');
+                    break;
+
+                case 'say':
+                    addBotMessage(message.text);
+                    break;
+
+                case 'ask':
+                    addBotMessage(message.text);
+                    break;
+
+                case 'state.updated':
+                    currentContext = message.ctx;
+                    updateContextDisplay();
+                    break;
+
+                case 'fsm.transition':
+                    addEventMessage(`🔄 State: ${message.from} → ${message.to}`);
+                    break;
+
+                case 'tool.call':
+                    addEventMessage(`🔧 Calling tool: ${message.name}`);
+                    break;
+
+                case 'tool.result':
+                    addEventMessage(`✅ Tool completed: ${JSON.stringify(message.result)}`);
+                    break;
+
+                case 'tool.error':
+                    addErrorMessage(`Tool Error: ${message.error}`);
+                    addBotMessage("I'm sorry, there was a technical issue. Let me try to help you in another way.");
+                    break;
+
+                case 'intent.unhandled':
+                    addEventMessage(`❓ Unhandled intent: ${message.intent} (confidence: ${Math.round(message.confidence * 100)}%)`);
+                    break;
+
+                case 'error':
+                    addErrorMessage(message.message);
+                    break;
+
+                case 'hangup':
+                    addBotMessage('Thank you for using our service! 👋');
+                    messageInput.disabled = true;
+                    sendButton.disabled = true;
+                    break;
+            }
+        }
+
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+            addUserMessage(text);
+
+            ws.send(JSON.stringify({
+                type: 'user.text',
+                text: text
+            }));
+
+            messageInput.value = '';
+        }
+
+        function addUserMessage(text) {
+            const message = createMessage('user', text);
+            messages.appendChild(message);
+            scrollToBottom();
+        }
+
+        function addBotMessage(text) {
+            const message = createMessage('bot', text);
+            messages.appendChild(message);
+            scrollToBottom();
+        }
+
+        function addErrorMessage(text) {
+            const error = document.createElement('div');
+            error.className = 'error-message';
+            error.textContent = text;
+            messages.appendChild(error);
+            scrollToBottom();
+        }
+
+        function addEventMessage(text) {
+            const event = document.createElement('div');
+            event.className = 'event-message';
+            event.textContent = text;
+            messages.appendChild(event);
+            scrollToBottom();
+        }
+
+        function createMessage(type, text) {
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = text;
+
+            const time = document.createElement('div');
+            time.className = 'message-time';
+            time.textContent = new Date().toLocaleTimeString();
+
+            message.appendChild(bubble);
+            message.appendChild(time);
+
+            return message;
+        }
+
+        function updateContextDisplay() {
+            const existing = document.querySelector('.context-display');
+            if (existing) existing.remove();
+
+            if (Object.keys(currentContext).length === 0) return;
+
+            const context = document.createElement('div');
+            context.className = 'context-display';
+
+            const title = document.createElement('div');
+            title.className = 'context-title';
+            title.textContent = '📝 Current Context:';
+
+            const content = document.createElement('pre');
+            content.textContent = JSON.stringify(currentContext, null, 2);
+
+            context.appendChild(title);
+            context.appendChild(content);
+            messages.appendChild(context);
+            scrollToBottom();
+        }
+
+        function updateConnectionStatus(connected) {
+            statusDot.className = `status-dot ${connected ? 'connected' : ''}`;
+            statusText.textContent = connected ? 'Connected' : 'Disconnected';
+            messageInput.disabled = !connected;
+            sendButton.disabled = !connected;
+        }
+
+        function addDebugEvent(event, data = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'debug-event';
+
+            const header = document.createElement('div');
+            header.className = 'debug-event-header';
+            header.innerHTML = `
+                <span>${event}</span>
+                <span class="debug-event-time">${timestamp}</span>
+            `;
+
+            entry.appendChild(header);
+
+            if (data) {
+                const details = document.createElement('div');
+                details.className = 'debug-event-data';
+                details.textContent = JSON.stringify(data, null, 2);
+                entry.appendChild(details);
+            }
+
+            // Keep only last 50 events to prevent memory issues
+            if (debugContent.children.length > 50) {
+                debugContent.removeChild(debugContent.firstChild);
+            }
+
+            debugContent.appendChild(entry);
+            debugContent.scrollTop = debugContent.scrollHeight;
+
+            // Also log to console for terminal output
+            console.log(`[${timestamp}] ${event}`, data || '');
+        }
+
+        function toggleDebug() {
+            const panel = document.getElementById('debugPanel');
+            panel.classList.toggle('open');
+        }
+
+        function openFlowInfo() {
+            if (sessionId) {
+                const url = `/flow-info?session=${encodeURIComponent(sessionId)}`;
+                window.open(url, '_blank');
+            } else {
+                window.open('/flow-info', '_blank');
+            }
+        }
+
+        function scrollToBottom() {
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        // Event listeners
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        sendButton.addEventListener('click', sendMessage);
+
+        // Initialize when page loads
+        window.addEventListener('load', initializeChat);
+    </script>
+</body>
+
+</html>

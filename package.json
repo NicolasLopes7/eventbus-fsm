@@ -9,9 +9,8 @@
     "dev": "pnpm -r dev",
     "build": "pnpm -r build",
     "check-types": "pnpm -r check-types",
-    "dev:native": "pnpm --filter native dev",
-    "dev:web": "pnpm --filter web dev",
-    "dev:server": "pnpm --filter server dev"
+    "dev:server": "pnpm --filter server dev",
+    "dev:web": "pnpm --filter web dev"
   },
   "packageManager": "pnpm@10.12.3"
 }
