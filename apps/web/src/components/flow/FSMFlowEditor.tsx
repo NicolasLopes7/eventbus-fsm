@@ -47,6 +47,7 @@ import { FSMStateNode } from "./FSMStateNode";
 import { FSMEdge } from "./FSMEdge";
 import { StatePropertiesPanel } from "./StatePropertiesPanel";
 import { TransitionPropertiesPanel } from "./TransitionPropertiesPanel";
+import type { FlowConfig } from "../../lib/types";
 import { ToolboxPanel } from "./ToolboxPanel";
 import { apiClient } from "../../lib/api-client";
 
@@ -86,14 +87,13 @@ export interface FSMState {
 export interface FSMFlow {
   name: string;
   description: string;
-  startState: string;
-  states: FSMState[];
+  definition: FlowConfig;
 }
 
 interface FSMFlowEditorProps {
   initialFlow?: FSMFlow;
-  onSave?: (flow: FSMFlow) => void;
-  onTest?: (flow: FSMFlow) => void;
+  onSave?: (flow: FlowConfig) => void;
+  onTest?: (flow: FlowConfig) => void;
 }
 
 function FSMFlowEditorContent({
@@ -437,74 +437,96 @@ function FSMFlowEditorContent({
 
   // Save flow
   const saveFlow = useCallback(() => {
-    const flow: FSMFlow = {
-      name: flowName,
-      description: flowDescription,
-      startState:
-        nodes.find((n) => (n.data as any)?.type === "initial")?.id ||
-        nodes[0]?.id ||
-        "",
-      states: nodes.map((node) => {
+    const startState =
+      nodes.find((n) => (n.data as any)?.type === "initial")?.id ||
+      nodes[0]?.id ||
+      "";
+
+    // Convert FSM representation to FlowConfig
+    const flowConfig: FlowConfig = {
+      meta: {
+        name: flowName,
+        language: "en",
+        voice: "alloy",
+      },
+      start: startState,
+      states: nodes.reduce((acc, node) => {
         const nodeData = node.data as any;
-        return {
-          id: node.id,
-          name: nodeData?.name || "Unnamed",
-          type: nodeData?.type || "normal",
+        acc[node.id] = {
           onEnter: nodeData?.onEnter || [],
           transitions: edges
             .filter((edge) => edge.source === node.id)
             .map((edge) => {
               const edgeData = edge.data as any;
-              return {
-                id: edge.id,
-                onIntent: edgeData?.onIntent,
-                onToolResult: edgeData?.onToolResult,
+              const transition: any = {
                 to: edge.target,
-                branch: edgeData?.branch,
               };
+              if (edgeData?.onIntent) {
+                transition.onIntent = edgeData.onIntent;
+              }
+              if (edgeData?.onToolResult) {
+                transition.onToolResult = edgeData.onToolResult;
+              }
+              if (edgeData?.branch) {
+                transition.branch = edgeData.branch;
+              }
+              return transition;
             }),
-          position: node.position,
         };
-      }),
+        return acc;
+      }, {} as Record<string, any>),
+      intents: {},
+      tools: {},
     };
 
-    onSave?.(flow);
+    onSave?.(flowConfig);
   }, [flowName, flowDescription, nodes, edges, onSave]);
 
   // Test flow
   const testFlow = useCallback(() => {
-    const flow: FSMFlow = {
-      name: flowName,
-      description: flowDescription,
-      startState:
-        nodes.find((n) => (n.data as any)?.type === "initial")?.id ||
-        nodes[0]?.id ||
-        "",
-      states: nodes.map((node) => {
+    const startState =
+      nodes.find((n) => (n.data as any)?.type === "initial")?.id ||
+      nodes[0]?.id ||
+      "";
+
+    // Convert FSM representation to FlowConfig
+    const flowConfig: FlowConfig = {
+      meta: {
+        name: flowName,
+        language: "en",
+        voice: "alloy",
+      },
+      start: startState,
+      states: nodes.reduce((acc, node) => {
         const nodeData = node.data as any;
-        return {
-          id: node.id,
-          name: nodeData?.name || "Unnamed",
-          type: nodeData?.type || "normal",
+        acc[node.id] = {
           onEnter: nodeData?.onEnter || [],
           transitions: edges
             .filter((edge) => edge.source === node.id)
             .map((edge) => {
               const edgeData = edge.data as any;
-              return {
-                id: edge.id,
-                onIntent: edgeData?.onIntent,
-                onToolResult: edgeData?.onToolResult,
+              const transition: any = {
                 to: edge.target,
-                branch: edgeData?.branch,
               };
+              if (edgeData?.onIntent) {
+                transition.onIntent = edgeData.onIntent;
+              }
+              if (edgeData?.onToolResult) {
+                transition.onToolResult = edgeData.onToolResult;
+              }
+              if (edgeData?.branch) {
+                transition.branch = edgeData.branch;
+              }
+              return transition;
             }),
-          position: node.position,
         };
-      }),
+        return acc;
+      }, {} as Record<string, any>),
+      intents: {},
+      tools: {},
     };
 
-    onTest?.(flow);
+    onTest?.(flowConfig);
   }, [flowName, flowDescription, nodes, edges, onTest]);
 
   // Show loading state while fetching data
@@ -561,11 +583,11 @@ function FSMFlowEditorContent({
               <Trash2 className="w-4 h-4 mr-2" />
               Delete
             </Button>
-            <Button onClick={saveFlow} variant="outline" size="sm">
+            <Button onClick={saveFlow} variant="outline" size="sm" disabled>
               <Save className="w-4 h-4 mr-2" />
               Save
             </Button>
-            <Button onClick={testFlow} size="sm">
+            <Button onClick={testFlow} size="sm" disabled>
               <Play className="w-4 h-4 mr-2" />
               Test Flow
             </Button>

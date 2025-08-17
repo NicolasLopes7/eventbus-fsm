@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import type { Route } from "./+types/_index";
+import { Link } from "react-router";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { SimpleChatInterface } from "../components/chat/SimpleChatInterface";
@@ -15,6 +16,8 @@ import {
   XCircle,
   Edit3,
   RotateCcw,
+  Database,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -139,7 +142,7 @@ export default function Home() {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-              <Button
+              {/* <Button
                 onClick={handleNewSession}
                 size="sm"
                 variant="outline"
@@ -147,28 +150,27 @@ export default function Home() {
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
                 New Session
-              </Button>
+              </Button> */}
 
-              <Button asChild size="sm" variant="outline">
-                <a
-                  href="/flow-editor"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Edit3 className="w-4 h-4 mr-2" />
-                  Flow Editor
-                </a>
-              </Button>
-
-              <Button asChild size="sm" variant="outline">
-                <a
-                  href="/flow-manager"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+              {/* <Button asChild size="sm" variant="outline">
+                <Link to="/chat">
                   <MessageCircle className="w-4 h-4 mr-2" />
+                  New Chat
+                </Link>
+              </Button> */}
+
+              {/* <Button asChild size="sm" variant="outline">
+                <Link to="/flow-manager">
+                  <Database className="w-4 h-4 mr-2" />
                   Flow Database
-                </a>
+                </Link>
+              </Button> */}
+
+              <Button asChild size="sm" variant="outline">
+                <Link to="/flow-editor">
+                  <Eye className="w-4 h-4 mr-2" />
+                  Flow viewer
+                </Link>
               </Button>
             </div>
           </div>

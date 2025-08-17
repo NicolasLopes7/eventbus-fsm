@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import {
   Card,
   CardContent,
@@ -19,7 +20,7 @@ import {
   SelectValue,
 } from "../ui/select";
 import { apiClient } from "../../lib/api-client";
-import { Flow, FlowCategory } from "../../lib/types";
+import type { Flow, FlowCategory } from "../../lib/types";
 import {
   Loader2,
   Plus,
@@ -35,11 +36,11 @@ import {
 import { toast } from "sonner";
 
 interface FlowManagerProps {
-  onSelectFlow?: (flow: Flow) => void;
-  onEditFlow?: (flow: Flow) => void;
+  // Remove old props since we're using navigation now
 }
 
-export function FlowManager({ onSelectFlow, onEditFlow }: FlowManagerProps) {
+export function FlowManager({}: FlowManagerProps) {
+  const navigate = useNavigate();
   const [flows, setFlows] = useState<Flow[]>([]);
   const [categories, setCategories] = useState<FlowCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,10 +119,8 @@ export function FlowManager({ onSelectFlow, onEditFlow }: FlowManagerProps) {
       setNewFlow({ name: "", description: "" });
       toast.success("Flow created successfully!");
 
-      // Optionally open the editor
-      if (onEditFlow) {
-        onEditFlow(createdFlow);
-      }
+      // Navigate to the new flow editor
+      navigate(`/flow/${createdFlow.id}`);
     } catch (error) {
       console.error("Failed to create flow:", error);
       toast.error("Failed to create flow");
@@ -364,28 +363,24 @@ export function FlowManager({ onSelectFlow, onEditFlow }: FlowManagerProps) {
 
               {/* Actions */}
               <div className="flex gap-2 pt-2">
-                {onSelectFlow && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onSelectFlow(flow)}
-                    className="flex items-center gap-1"
-                  >
-                    <Eye className="h-3 w-3" />
-                    View
-                  </Button>
-                )}
-                {onEditFlow && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onEditFlow(flow)}
-                    className="flex items-center gap-1"
-                  >
-                    <Edit className="h-3 w-3" />
-                    Edit
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/flow/${flow.id}`)}
+                  className="flex items-center gap-1"
+                >
+                  <Eye className="h-3 w-3" />
+                  View
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/flow/${flow.id}`)}
+                  className="flex items-center gap-1"
+                >
+                  <Edit className="h-3 w-3" />
+                  Edit
+                </Button>
                 {flow.status === "draft" && (
                   <Button
                     variant="outline"

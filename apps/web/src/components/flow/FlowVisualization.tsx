@@ -25,10 +25,12 @@ import { toast } from "sonner";
 
 interface FlowVisualizationProps {
   sessionId?: string;
+  data?: FlowVisualizationData;
 }
 
 export function FlowVisualization({
   sessionId: initialSessionId,
+  data: providedData,
 }: FlowVisualizationProps) {
   const [flowData, setFlowData] = useState<FlowVisualizationData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -132,13 +134,18 @@ export function FlowVisualization({
 
   // Load initial data
   useEffect(() => {
-    if (initialSessionId) {
+    if (providedData) {
+      // Use provided data directly (for flow detail view)
+      setFlowData(providedData);
+      setLoading(false);
+      setError(null);
+    } else if (initialSessionId) {
       setSessionId(initialSessionId);
       loadFlowInfo(initialSessionId);
     } else {
       loadFlowInfo();
     }
-  }, [initialSessionId]);
+  }, [initialSessionId, providedData]);
 
   if (loading) {
     return (

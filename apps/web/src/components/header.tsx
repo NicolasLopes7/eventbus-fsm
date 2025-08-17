@@ -6,8 +6,8 @@ import { ModeToggle } from "./mode-toggle";
 export default function Header() {
   const links = [
     { to: "/", label: "Home", icon: Home },
-    { to: "/chat", label: "Chat", icon: MessageCircle },
-    { to: "/flow-info", label: "Flow", icon: GitBranch },
+    // { to: "/chat", label: "Chat", icon: MessageCircle },
+    // { to: "/flow-info", label: "Flow", icon: GitBranch },
   ];
 
   return (

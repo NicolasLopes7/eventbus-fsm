@@ -1,7 +1,6 @@
 import Redis from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
-import type { FlowConfig, SessionState, ServerMessage, ClientMessage } from './types';
-import { pub, sub } from './redis';
+import type { FlowConfig, SessionState } from './types';
 
 /**
  * Session manager handles Redis-based session state persistence and locking
