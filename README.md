@@ -286,7 +286,7 @@ The system provides comprehensive event logging through Redis streams. Events in
 
 ## 🤝 Contributing
 
-This is a staff-level engineering implementation showcasing advanced patterns for production conversational AI systems. The codebase demonstrates:
+The codebase demonstrates:
 
 - Type-safe state machine design
 - Distributed systems patterns (Redis locks, streams)
