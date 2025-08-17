@@ -1,5 +1,8 @@
 # EventBus FSM - Advanced Tool-Calling State Machine
 
+
+![CleanShot 2025-08-17 at 14 56 13@2x](https://github.com/user-attachments/assets/7b525c1e-8d77-4b54-a33e-43756b0a6b65)
+
 A sophisticated Finite State Machine (FSM) system designed for conversational AI with tool-calling capabilities. This system provides a complete framework for building complex, stateful conversational flows with Redis-backed persistence, real-time event streaming, and LLM-powered intent classification.
 
 ## 🚀 Features
