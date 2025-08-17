@@ -86,6 +86,7 @@ Define your conversational flows using a simple JSON DSL:
 ### Prerequisites
 
 - Node.js 18+
+- PostgreSQL database
 - Redis server
 - OpenAI API key (optional, for LLM classification)
 
@@ -95,29 +96,51 @@ Define your conversational flows using a simple JSON DSL:
 # Install dependencies
 pnpm install
 
-# Start Redis (if not running)
-docker run -d -p 6379:6379 redis:alpine
+# Start PostgreSQL and Redis using Docker Compose
+docker-compose up -d
 
-# Set environment variables
-export OPENAI_API_KEY="your-api-key"  # Optional
-export REDIS_URL="redis://localhost:6379"
+# Copy environment template (optional - defaults work with docker-compose)
+cp env.example .env
 
-# Start the server
-cd apps/server
+# Edit .env if needed for custom configuration
+# DATABASE_URL=postgresql://postgres:password@localhost:5432/eventbus_fsm
+# REDIS_URL=redis://localhost:6379
+# OPENAI_API_KEY=your-api-key  # Optional
+
+# Start both server and web app
 pnpm dev
 ```
 
-### Using the Chat UI
+### Using the Web Interface
 
-1. Start the server: `cd apps/server && pnpm dev`
-2. Open your browser to: `http://localhost:3000`
-3. The chat UI will automatically create a demo session and connect
+1. Start both server and web app: `pnpm dev`
+2. Open your browser to: `http://localhost:5173`
+3. Available interfaces:
+   - **Home Dashboard**: Real-time chat with flow visualization
+   - **Flow Manager** (`/flow-manager`): Create, edit, and manage conversation flows
+   - **Chat Interface** (`/chat`): Select and test individual flows
+   - **Flow Editor** (`/flow-editor`): Visual flow design interface
+
+### Flow Management
+
+The system now includes a complete flow management interface:
+
+- **Create Flows**: Design conversation flows with visual editor
+- **Flow Database**: Browse, edit, and organize flows by categories
+- **Version Control**: Track flow versions and usage statistics
+- **Testing**: Select any flow to test in isolated chat sessions
+- **Publishing**: Publish flows to make them available for testing
+
+### Testing Flows
+
+1. Go to `/chat` to access the flow selector
+2. Choose from published flows
+3. Start a chat session with your selected flow
 4. Try these example messages:
    - "I want to make a reservation"
    - "We are 4 people"
    - "Tomorrow at 7pm"
    - "My name is John Doe, phone 555-1234"
-   - Add "(HANG ON)" to any message to trigger misclassification
 
 ### Creating a Session Programmatically
 
@@ -230,33 +253,71 @@ This will test:
 ### Environment Variables
 
 ```bash
+# Database Configuration (Required)
+DATABASE_URL=postgresql://username:password@localhost:5432/eventbus_fsm
+
+# Redis Configuration
 REDIS_URL=redis://your-redis-host:6379
-OPENAI_API_KEY=your-openai-key
+
+# Server Configuration
 PORT=3000
-CORS_ORIGIN=https://your-frontend.com
+
+# AI Configuration (Optional)
+OPENAI_API_KEY=your-openai-key
+
+# Web App Configuration (Development)
+VITE_API_URL=http://localhost:3000
+VITE_WS_URL=ws://localhost:3001
 ```
 
 ### Docker Deployment
 
+For development, simply use the included docker-compose.yml:
+
+```bash
+# Start databases
+docker-compose up -d
+
+# Start the application
+pnpm dev
+```
+
+For production deployment, you can extend the compose file:
+
 ```yaml
-# docker-compose.yml
+# docker-compose.prod.yml
 version: "3.8"
 services:
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: eventbus_fsm
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
-  fsm-server:
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+
+  app:
     build: .
     ports:
       - "3000:3000"
       - "3001:3001"
     environment:
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/eventbus_fsm
       - REDIS_URL=redis://redis:6379
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
+      - postgres
       - redis
+
+volumes:
+  postgres_data:
+  redis_data:
 ```
 
 ### Monitoring

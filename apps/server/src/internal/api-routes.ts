@@ -323,8 +323,8 @@ export function createAPIRouter(orchestrator: FSMOrchestrator): express.Router {
         return res.status(400).json({ error: 'Name and definition are required' });
       }
 
-      // For now, use a default user ID (in production, get from auth)
-      const defaultUserId = '00000000-0000-0000-0000-000000000000'; // This should come from authentication
+      // Default user for demo purposes
+      const defaultUserId = '00000000-0000-0000-0000-000000000000';
 
       const flow = await flowService.createFlow({
         name,

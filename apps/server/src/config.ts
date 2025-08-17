@@ -7,9 +7,9 @@ type Config = {
 }
 
 export const config: Config = {
-  port: 3000,
-  redisURL: "redis://localhost:6379",
+  port: parseInt(process.env.PORT || '3000'),
+  redisURL: process.env.REDIS_URL || "redis://localhost:6379",
   database: {
-    url: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/eventbus_fsm',
+    url: process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/eventbus_fsm',
   },
 };
