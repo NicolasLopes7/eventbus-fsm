@@ -1,4 +1,5 @@
-# EventBus FSM - Advanced Tool-Calling State Machine
+# EventBus FSM - Tool-Calling State Machine
+> relayed through redis (pub/sub) event bus
 
 
 ![CleanShot 2025-08-17 at 14 56 13@2x](https://github.com/user-attachments/assets/7b525c1e-8d77-4b54-a33e-43756b0a6b65)
